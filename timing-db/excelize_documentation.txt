@@ -1,0 +1,22 @@
+/*
+ * Excelize API reference
+ * cell, err := f.GetCellValue("Sheet1", "B2")
+
+ * rows, err := f.GetRows("Sheet1")
+ *    for _, row := range rows {
+        for _, colCell := range row {
+            fmt.Print(colCell, "\t")
+        }
+        fmt.Println()
+    }
+
+	Get active sheet index:
+	func (f *File) GetActiveSheetIndex() int
+
+	Set default worksheet:
+	func (f *File) SetActiveSheet(index int)
+
+	More documentation at:
+	https://xuri.me/excelize/en/workbook.html
+
+*/

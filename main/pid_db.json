@@ -1,0 +1,166 @@
+{
+    "root" : {
+        "fretta" : {
+            "family_code" : "NCS5500",
+            "pids" : {
+                "NCS-55A1-24Q6H-S" : {
+                    "nickname" : "Turin-CR",
+                    "node-type" : "fixed-chassis",
+                    "NPU" : "Jericho+",
+                    "OS" : "exr",
+                    "servo-version" : "485",
+                    "PLL" : "ZL30702",
+                    "timing-performance" : "Class-B",
+                    "gnss" : "trimble",
+                    "bits framer" : "NA",
+                    "HW-SPEC" : "EDCS-12909672",
+                    "SW-SPEC" : "EDCS- 11417510",
+                    "clock-recovery" : "NPU",
+                    "timestamper" : "NPU",
+                    "port-ranges" : {
+                        "0-23" : {
+                            "phy" : "NA",
+                            "macsec" : "NA",
+                            "breakout" : "NA",
+                            "lane-speeds" : {
+                                "1G,10G" : {
+                                    "synce" : "Supported" 
+                                }
+                            }
+                        },
+                        "24-31" : {
+                            "phy" : "NA",
+                            "macsec" : "NA",
+                            "breakout" : "NA",
+                            "lane-speeds" : {
+                                "1G" : {
+                                    "synce" : "Not supported"
+                                },
+                                "10G,25G" : {
+                                    "synce" : "Supported"
+                                }
+                            }
+                        },
+                        "32-47" : {
+                            "phy" : "Bearvalley",
+                            "phy-mode" : "retimer",
+                            "breakout" : "NA",
+                            "macsec" : "NA",
+                            "lane-speeds" : {
+                                "1G" : {
+                                    "synce" : "Not supported"
+                                },
+                                "10G,25G" : {
+                                    "synce" : "Supported"
+                                }
+                            }
+                        },
+                        "48-53" : {
+                            "phy" : "Bearvalley",
+                            "phy-mode" : "retimer",
+                            "breakout" : "4x25",
+                            "macsec" : "NA",
+                            "lane-speeds" : {
+                                "40G,100G" : {
+                                    "synce" : "Supported"
+                                }
+                            }
+                        } 
+                    }
+                },
+                "NC55-32T16Q4H-A" : {
+                    "nickname" : "Potenza+10C",
+                    "chassis-type" : "LC",
+                    "NPU" : "Jericho+",
+                    "OS" : "exr",
+                    "PLL" : "ZL30803",
+                    "servo-version" : "NA",
+                    "timing-performance" : "classC",
+                    "gnss" : "NA",
+                    "bits framer" : "NA",
+                    "HW-SPEC" : "EDCS-13525732",
+                    "SW-SPEC" : "EDCS-17870701",
+                    "clock-recovery" : "PHY",
+                    "timestamper" : "PHY",
+                    "port-ranges" : {
+                        "0-31" : {
+                            "phy" : "VSC8258",
+                            "phy-mode" : "retimer",
+                            "macsec" : "NA",
+                            "breakout" : "NA",
+                            "lane-speeds" : {
+                                "1G,10G" : {
+                                    "synce" : "Supported" 
+                                }
+                            }
+                        },
+                        "32-47" : {
+                            "phy" : "MetaDX1",
+                            "phy-mode" : "retimer",
+                            "macsec" : "NA",
+                            "breakout" : "NA",
+                            "lane-speeds" : {
+                                "10G,25G" : {
+                                    "synce" : "Supported"
+                                }
+                            }
+                        },
+                        "48-51" : {
+                            "phy" : "MetaDX1",
+                            "phy-mode" : "retimer",
+                            "breakout" : "NA",
+                            "macsec" : "NA",
+                            "lane-speeds" : {
+                                "100G,40G" : {
+                                    "synce" : "Supported"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "bigbend" : {
+            "family-code" : "NCS540L",
+            "pids" : {
+                "N540-12Z20G-SYS-A" : {
+                    "nickname" : "Denali-AC",
+                    "node-type" : "fixed-chassis",
+                    "NPU" : "Qumran-AX",
+                    "OS" : "lindt",
+                    "servo-version" : "504",
+                    "PLL" : "ZL30773",
+                    "timing-performance" : "Class-C",
+                    "gnss" : "NA",
+                    "bits framer" : "zl81000",
+                    "HW-SPEC" : " EDCS-15041569",
+                    "SW-SPEC" : "EDCS-11902318",
+                    "clock-recovery" : "NPU",
+                    "timestamper" : "NPU",
+                    "port-ranges" : {
+                        "0-19" : {
+                            "phy" : "NA",
+                            "macsec" : "NA",
+                            "breakout" : "NA",
+                            "lane-speeds" : {
+                                "1G" : {
+                                    "synce" : "Supported" 
+                                }
+                            }
+                        },
+                        "20-31" : {
+                            "phy" : "NA",
+                            "macsec" : "NA",
+                            "breakout" : "NA",
+                            "lane-speeds" : {
+                                "1G,10G" : {
+                                    "synce" : "Not supported"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
