@@ -452,3 +452,24 @@ func Dump_db(db Schema_db) {
 		fmt.Print(response)
 	}
 }
+
+func Get_family_info(db Schema_db, family_name string) (response string) {
+	for _, family := range db.Get_families() {
+		if family.Properties["name"].(string) == family_name {
+			response = Dump_family(&family)
+		}
+	}
+	return response
+}
+
+func Get_pid_info(db Schema_db, pid_name string) (response string) {
+	for _, family := range db.Get_families() {
+		for _, pid := range family.Pids {
+			if pid_name == pid.Properties["name"] ||
+				pid_name == pid.Properties["nickname"] {
+				response = Dump_pid(&pid)
+			}
+		}
+	}
+	return response
+}

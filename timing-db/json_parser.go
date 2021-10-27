@@ -125,27 +125,6 @@ func (db *Json_db) Parse_db(filepath string) error {
 	return nil
 }
 
-func (db *Json_db) Get_family_info(family_name string) (response string) {
-	for _, family := range db.families {
-		if family.Properties["name"].(string) == family_name {
-			response = Dump_family(&family)
-		}
-	}
-	return response
-}
-
-func (db *Json_db) Get_pid_info(pid_name string) (response string) {
-	for _, family := range db.families {
-		for _, pid := range family.Pids {
-			if pid_name == pid.Properties["name"] ||
-				pid_name == pid.Properties["nickname"] {
-				response = Dump_pid(&pid)
-			}
-		}
-	}
-	return response
-}
-
 func (db Json_db) Get_families() []T_families {
 	return db.families
 }

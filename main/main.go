@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	webexteams "github.com/jbogarin/go-cisco-webex-teams/sdk"
+	stats "github.com/maniksinghal/eve/stats"
 	schema_db "github.com/maniksinghal/eve/timing-db"
 )
 
@@ -43,9 +44,9 @@ func respond_to_query(message string, roomId string) {
 	if len(responses) == 0 {
 		if strings.Contains(message, "everything") {
 			if len(matched_families) == 1 {
-				response = my_db.Get_family_info(matched_families[0])
+				response = schema_db.Get_family_info(my_db, matched_families[0])
 			} else if len(matched_pids) == 1 {
-				response = my_db.Get_pid_info(matched_pids[0])
+				response = schema_db.Get_pid_info(my_db, matched_pids[0])
 			} else {
 				response = negative_response
 			}
@@ -214,25 +215,43 @@ func cleanup_webhooks() {
 	*/
 }
 
-var my_db *schema_db.Json_db
+var my_db schema_db.Schema_db
 
 func test_my_bot() {
-	excel_db := new(schema_db.Excel_db)
-	err := excel_db.Parse_db("Timing PIDs.xlsx")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	schema_db.Dump_db(excel_db)
+	// Nothing to do for now
 }
 
 func main() {
 
+	// Initialize stats
+	var stats_handle stats.Stats_handle = new(stats.MySql_handle)
+	stats_handle.Initialize()
+	stats_handle.Updatestat("go query2", "go go category", 30, "my go full response")
+
+	response, err := stats_handle.GetResponseById(1)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Got response for id1: %s\n", response)
+
+	stat_data, err := stats_handle.GetLastNstats(5)
+	if err != nil {
+		panic(err)
+	}
+
+	i := 0
+	for i < len(stat_data) {
+		fmt.Printf("TS:%s, Id:%d Query:%s, Category:%s, NumResponses:%d\n",
+			stat_data[i].Timestamp, stat_data[i].Id,
+			stat_data[i].Query, stat_data[i].Category, stat_data[i].NumResponses)
+		i += 1
+	}
 	test_my_bot()
 	return
 
-	my_db = new(schema_db.Json_db)
-	schema_db.Parse_database(my_db, "pid_db.json")
+	my_db = new(schema_db.Excel_db)
+	schema_db.Parse_database(my_db, "Timing PIDs.xlsx")
+	schema_db.Dump_db(my_db)
 
 	cleanup_webhooks()
 
