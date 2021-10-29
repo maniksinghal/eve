@@ -1,59 +1,24 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	webexteams "github.com/jbogarin/go-cisco-webex-teams/sdk"
+	query_parser "github.com/maniksinghal/eve/query_parser"
 	stats "github.com/maniksinghal/eve/stats"
 	schema_db "github.com/maniksinghal/eve/timing-db"
 )
 
-func test_my_db(my_db *schema_db.Json_db) {
-	var query = "Does Bifrost use MetaDX1 phy"
-	var keywords = strings.Split(query, " ")
-	responses, _, _ := schema_db.Query_database(keywords, my_db)
-	for _, resp := range responses {
-		fmt.Printf("The %s family %s card uses %s=%s on ports:%s, speeds:%s\n",
-			resp.Family, resp.Pid, resp.Property, resp.Value, resp.Port_range, resp.Lane_speeds)
-	}
-}
-
 func respond_to_query(message string, roomId string) {
-	var keywords = strings.Split(message, " ")
-	var response string
-	responses, matched_families, matched_pids := schema_db.Query_database(keywords, my_db)
 
-	for _, resp := range responses {
-		this_resp := fmt.Sprintf("The %s family %s card uses %s=%s",
-			resp.Family, resp.Pid, resp.Property, resp.Value)
-		if len(resp.Port_range) > 0 {
-			this_resp = this_resp + fmt.Sprintf(" on ports %s", resp.Port_range)
-		}
-		if len(resp.Lane_speeds) > 0 {
-			this_resp = this_resp + fmt.Sprintf(" with speeds %s", resp.Lane_speeds)
-		}
-
-		response = response + this_resp + "\n"
-	}
-
-	negative_response := "Sorry, I didn't understand. Please try a simpler query"
-	if len(responses) == 0 {
-		if strings.Contains(message, "everything") {
-			if len(matched_families) == 1 {
-				response = schema_db.Get_family_info(my_db, matched_families[0])
-			} else if len(matched_pids) == 1 {
-				response = schema_db.Get_pid_info(my_db, matched_pids[0])
-			} else {
-				response = negative_response
-			}
-		} else {
-			response = negative_response
-		}
-	}
+	var response string = query_parser.Parse_query(message, my_db)
 
 	/*
 		if len(responses) == 0 {
@@ -61,21 +26,18 @@ func respond_to_query(message string, roomId string) {
 		}
 	*/
 
-	if roomId != "test" {
-		markDownMessage := &webexteams.MessageCreateRequest{
-			Text:   response,
-			RoomID: roomId,
-			//ToPersonID: person_id,
-		}
-
-		newMarkDownMessage, _, err := Client.Messages.CreateMessage(markDownMessage)
-		if err != nil {
-			fmt.Println("Error sending message " + err.Error())
-		}
-		fmt.Println("POST:", newMarkDownMessage.ID, newMarkDownMessage.Markdown, newMarkDownMessage.Created)
-	} else {
-		fmt.Printf(response)
+	markDownMessage := &webexteams.MessageCreateRequest{
+		Text:   response,
+		RoomID: roomId,
+		//ToPersonID: person_id,
 	}
+
+	newMarkDownMessage, _, err := Client.Messages.CreateMessage(markDownMessage)
+	if err != nil {
+		fmt.Println("Error sending message " + err.Error())
+	}
+	fmt.Println("POST:", newMarkDownMessage.ID, newMarkDownMessage.Markdown,
+		newMarkDownMessage.Created)
 }
 
 // create a handler struct
@@ -109,8 +71,7 @@ func (h HttpHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var data map[string]interface{}
-	data = result["data"].(map[string]interface{})
+	var data map[string]interface{} = result["data"].(map[string]interface{})
 	_, exists = data["id"]
 	if !exists {
 		fmt.Println("Did not receive valid data in message")
@@ -217,50 +178,69 @@ func cleanup_webhooks() {
 
 var my_db schema_db.Schema_db
 
-func test_my_bot() {
-	// Nothing to do for now
-}
-
 func main() {
 
 	// Initialize stats
 	var stats_handle stats.Stats_handle = new(stats.MySql_handle)
 	stats_handle.Initialize()
-	stats_handle.Updatestat("go query2", "go go category", 30, "my go full response")
 
-	response, err := stats_handle.GetResponseById(1)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Got response for id1: %s\n", response)
+	query_parser.Initialize()
 
-	stat_data, err := stats_handle.GetLastNstats(5)
-	if err != nil {
-		panic(err)
-	}
+	shellPtr := flag.Bool("shell", false, "Run in shell mode")
+	flag.Parse()
 
-	i := 0
-	for i < len(stat_data) {
-		fmt.Printf("TS:%s, Id:%d Query:%s, Category:%s, NumResponses:%d\n",
-			stat_data[i].Timestamp, stat_data[i].Id,
-			stat_data[i].Query, stat_data[i].Category, stat_data[i].NumResponses)
-		i += 1
-	}
-	test_my_bot()
-	return
+	/*
+		stats_handle.Updatestat("go query2", "go go category", 30, "my go full response")
+
+		response, err := stats_handle.GetResponseById(1)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("Got response for id1: %s\n", response)
+
+		stat_data, err := stats_handle.GetLastNstats(5)
+		if err != nil {
+			panic(err)
+		}
+
+		i := 0
+		for i < len(stat_data) {
+			fmt.Printf("TS:%s, Id:%d Query:%s, Category:%s, NumResponses:%d\n",
+				stat_data[i].Timestamp, stat_data[i].Id,
+				stat_data[i].Query, stat_data[i].Category, stat_data[i].NumResponses)
+			i += 1
+		}
+	*/
 
 	my_db = new(schema_db.Excel_db)
 	schema_db.Parse_database(my_db, "Timing PIDs.xlsx")
-	schema_db.Dump_db(my_db)
+	//schema_db.Dump_db(my_db)
 
-	cleanup_webhooks()
+	if !*shellPtr {
+		cleanup_webhooks()
 
-	// create a new handler
-	handler := HttpHandler{}
+		// create a new handler
+		handler := HttpHandler{}
 
-	// listen and serve
-	fmt.Println("Listening on port 9000")
-	http.ListenAndServe(":9000", handler)
-	fmt.Println("Abrupt came out of listening!!")
+		// listen and serve
+		fmt.Println("Listening on port 9000")
+		http.ListenAndServe(":9000", handler)
+		fmt.Println("Abrupt came out of listening!!")
+	} else {
+		/* Enter shell mode */
+		reader := bufio.NewReader(os.Stdin)
+		for {
+			fmt.Printf("query> ")
+			text, _ := reader.ReadString('\n')
+			text = strings.TrimSuffix(text, "\n")
+			if text == "quit" {
+				fmt.Println("Exiting the shell")
+				break
+			}
+			output := query_parser.Parse_query(text, my_db)
+			fmt.Println(output)
+		}
+
+	}
 
 }

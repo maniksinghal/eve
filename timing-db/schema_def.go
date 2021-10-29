@@ -311,7 +311,7 @@ func query_pids(family string, pids []T_pids, query []string) ([]Query_response,
 		pid_name := pid.Properties["name"].(string)
 		props, matched := check_match(family, pid_name, query,
 			pid.Properties)
-		fmt.Printf("Checking keywords:%s for pid:%s\n", strings.Join(query, ","), pid_name)
+		//fmt.Printf("Checking keywords:%s for pid:%s\n", strings.Join(query, ","), pid_name)
 		if matched {
 			for _, prop := range props {
 				if prop == "name" || prop == "nickname" {
@@ -363,7 +363,7 @@ func Query_database(query []string, db Schema_db) (responses []Query_response,
 
 		matched_pids = append(matched_pids, matched_pids_in_family...)
 	}
-	fmt.Printf("Got matched pids: %s\n", strings.Join(matched_pids, ","))
+	//fmt.Printf("Got matched pids: %s\n", strings.Join(matched_pids, ","))
 
 	var filtered_responses []Query_response
 	for _, response := range responses {

@@ -16,3 +16,5 @@ type Stats_handle interface {
 	GetResponseById(Id int) (string, error)
 	GetLastNstats(last_n int) ([]Stat_data, error)
 }
+
+var Stats Stats_handle

@@ -16,6 +16,8 @@ type MySql_handle struct {
 
 func (handle *MySql_handle) Initialize() error {
 
+	Stats = handle
+
 	handle.db_name = "eve_stats_db"
 	handle.stat_table = "queries"
 
