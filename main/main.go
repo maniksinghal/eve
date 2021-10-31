@@ -3,28 +3,23 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	webexteams "github.com/jbogarin/go-cisco-webex-teams/sdk"
+	"github.com/magiconair/properties"
 	query_parser "github.com/maniksinghal/eve/query_parser"
 	stats "github.com/maniksinghal/eve/stats"
 	schema_db "github.com/maniksinghal/eve/timing-db"
 )
 
-func respond_to_query(message string, roomId string) {
+func respond_to_query(message string, roomId string, sender string) {
 
-	var response string = query_parser.Parse_query(message, my_db)
-
-	/*
-		if len(responses) == 0 {
-			response = "Sorry, I couldn't understand. Please try a simpler query"
-		}
-	*/
+	var response string = query_parser.Parse_query(message, sender, my_db)
 
 	markDownMessage := &webexteams.MessageCreateRequest{
 		Text:   response,
@@ -95,7 +90,7 @@ func (h HttpHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	room_id := data["roomId"].(string)
 	sender := data["personEmail"].(string)
 
-	if sender == "maniktestbot@webex.bot" {
+	if sender == bot_email {
 		// Its me only
 		fmt.Println("Ignored processing of my own reply")
 		return
@@ -110,7 +105,7 @@ func (h HttpHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	fmt.Println("Received query " + htmlMessageGet.Text + " from " +
 		data["personEmail"].(string))
 
-	respond_to_query(htmlMessageGet.Text, room_id)
+	respond_to_query(htmlMessageGet.Text, room_id, sender)
 
 	// create response binary data
 	resp_data := []byte("Hello World!") // slice of bytes
@@ -119,16 +114,16 @@ func (h HttpHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 }
 
 var Client *webexteams.Client
-var bot_id string
+var bot_email string
 
 /*
  * List and delete all existing webhooks from
  * the bot
  * Webhook creation is done by hookbuster
  */
-func cleanup_webhooks() {
+func cleanup_webhooks(bot_id string) {
 	Client = webexteams.NewClient()
-	bot_id = "MWU5ZGRmZmYtNDk4ZC00NTg1LWE0YmUtNTE2YjMyOWVhZGRjOWIxNmI2NmYtMGZj_PF84_1eb65fdf-9643-417f-9974-ad72cae0e10f"
+	//bot_id = "MWU5ZGRmZmYtNDk4ZC00NTg1LWE0YmUtNTE2YjMyOWVhZGRjOWIxNmI2NmYtMGZj_PF84_1eb65fdf-9643-417f-9974-ad72cae0e10f"
 	Client.SetAuthToken(bot_id)
 
 	webhooksQueryParams := &webexteams.ListWebhooksQueryParams{
@@ -178,53 +173,53 @@ func cleanup_webhooks() {
 
 var my_db schema_db.Schema_db
 
+//var props *properties.Properties
+
 func main() {
 
+	props := properties.MustLoadFile("properties.config", properties.UTF8)
+
+	fmt.Printf("Got %d properties\n", props.Len())
+	for _, key := range props.Keys() {
+		fmt.Printf("%s => %s\n", key, props.GetString(key, "null"))
+	}
+
 	// Initialize stats
+	stats_db_user := props.GetString("stats_db_user", "anonymous")
+	stats_db_pwd := props.GetString("stats_db_pwd", "blank")
+	stats_db_host := props.GetString("stats_db_host", "localhost")
+	stats_db_port := props.GetInt("stats_db_port", 0)
 	var stats_handle stats.Stats_handle = new(stats.MySql_handle)
-	stats_handle.Initialize()
+	stats_handle.Initialize(stats_db_user, stats_db_pwd, stats_db_host, stats_db_port)
 
 	query_parser.Initialize()
 
-	shellPtr := flag.Bool("shell", false, "Run in shell mode")
-	flag.Parse()
-
 	/*
-		stats_handle.Updatestat("go query2", "go go category", 30, "my go full response")
-
-		response, err := stats_handle.GetResponseById(1)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("Got response for id1: %s\n", response)
-
-		stat_data, err := stats_handle.GetLastNstats(5)
-		if err != nil {
-			panic(err)
-		}
-
-		i := 0
-		for i < len(stat_data) {
-			fmt.Printf("TS:%s, Id:%d Query:%s, Category:%s, NumResponses:%d\n",
-				stat_data[i].Timestamp, stat_data[i].Id,
-				stat_data[i].Query, stat_data[i].Category, stat_data[i].NumResponses)
-			i += 1
-		}
+		shellPtr := flag.Bool("shell", false, "Run in shell mode")
+		flag.Parse()
 	*/
+
+	shell_mode := props.MustGetBool("shell_mode")
+	fmt.Println("Got shell_mode: " + strconv.FormatBool(shell_mode))
 
 	my_db = new(schema_db.Excel_db)
 	schema_db.Parse_database(my_db, "Timing PIDs.xlsx")
 	//schema_db.Dump_db(my_db)
 
-	if !*shellPtr {
-		cleanup_webhooks()
+	if !shell_mode {
+
+		bot_token := props.MustGetString("bot_token")
+		bot_email = props.MustGetString("bot_email")
+		cleanup_webhooks(bot_token)
 
 		// create a new handler
 		handler := HttpHandler{}
 
 		// listen and serve
-		fmt.Println("Listening on port 9000")
-		http.ListenAndServe(":9000", handler)
+		bot_listen_port := props.MustGetInt("bot_listen_port")
+		bot_listen_path := fmt.Sprintf(":%d", bot_listen_port)
+		fmt.Printf("Listening on port %d\n", bot_listen_port)
+		http.ListenAndServe(bot_listen_path, handler)
 		fmt.Println("Abrupt came out of listening!!")
 	} else {
 		/* Enter shell mode */
@@ -237,7 +232,7 @@ func main() {
 				fmt.Println("Exiting the shell")
 				break
 			}
-			output := query_parser.Parse_query(text, my_db)
+			output := query_parser.Parse_query(text, "shell_user", my_db)
 			fmt.Println(output)
 		}
 

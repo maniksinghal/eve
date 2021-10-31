@@ -14,14 +14,17 @@ type MySql_handle struct {
 	stat_table string
 }
 
-func (handle *MySql_handle) Initialize() error {
+func (handle *MySql_handle) Initialize(user string, password string,
+	host string, port int) error {
 
 	Stats = handle
 
 	handle.db_name = "eve_stats_db"
 	handle.stat_table = "queries"
 
-	db, err := sql.Open("mysql", "root:cisco@123@tcp(127.0.0.1:3306)/")
+	db_access := fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, host, port)
+	fmt.Printf("Connecting to mysql database with access: %s\n", db_access)
+	db, err := sql.Open("mysql", db_access)
 	if err != nil {
 		panic(err)
 	}
@@ -42,6 +45,7 @@ func (handle *MySql_handle) Initialize() error {
 	table_str += " timestamp TIMESTAMP(0) DEFAULT CURRENT_TIMESTAMP,"
 	table_str += " id INT NOT NULL AUTO_INCREMENT,"
 	table_str += " query VARCHAR(256) NOT NULL,"
+	table_str += " requestor VARCHAR(64) NOT NULL,"
 	table_str += " category VARCHAR(256) NOT NULL,"
 	table_str += " numResponses INT NOT NULL,"
 	table_str += " fullResponse VARCHAR(2048),"
@@ -59,7 +63,7 @@ func (handle *MySql_handle) Initialize() error {
 func (handle *MySql_handle) GetLastNstats(last_n int) ([]Stat_data, error) {
 	var stat_data []Stat_data
 
-	table_str := "SELECT timestamp,id,query,category,numResponses from " +
+	table_str := "SELECT timestamp,id,query,requestor,category,numResponses from " +
 		handle.db_name + "." + handle.stat_table + " order by timestamp DESC limit " +
 		strconv.Itoa(last_n)
 	fmt.Printf("Going to query: %s\n", table_str)
@@ -72,7 +76,7 @@ func (handle *MySql_handle) GetLastNstats(last_n int) ([]Stat_data, error) {
 	for result.Next() {
 		stat_entry := new(Stat_data)
 		err = result.Scan(&stat_entry.Timestamp, &stat_entry.Id, &stat_entry.Query,
-			&stat_entry.Category, &stat_entry.NumResponses)
+			&stat_entry.Requestor, &stat_entry.Category, &stat_entry.NumResponses)
 		if err != nil {
 			fmt.Printf("Error scanning response: %s\n", err.Error())
 			return nil, err
@@ -108,12 +112,12 @@ func (handle *MySql_handle) GetResponseById(Id int) (string, error) {
 	return full_result, nil
 }
 
-func (handle *MySql_handle) Updatestat(query string, category string,
+func (handle *MySql_handle) Updatestat(query string, requestor string, category string,
 	num_responses int, full_response string) error {
 
 	table_str := "INSERT into " + handle.stat_table
-	table_str += " (query, category, numResponses, fullResponse) VALUES ("
-	table_str += "\"" + query + "\", \"" + category + "\", \"" +
+	table_str += " (query, requestor, category, numResponses, fullResponse) VALUES ("
+	table_str += "\"" + query + "\", \"" + requestor + "\", \"" + category + "\", \"" +
 		strconv.Itoa(num_responses) + "\", \"" + full_response +
 		"\")"
 	fmt.Printf("Executing query %s\n", table_str)

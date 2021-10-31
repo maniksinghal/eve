@@ -2,6 +2,7 @@ package timing_db_schema
 
 import (
 	"fmt"
+	"io/ioutil"
 	"strconv"
 	"strings"
 )
@@ -31,8 +32,34 @@ type Schema_db interface {
 	Get_families() []T_families
 }
 
+var terms_map map[string][]string
+
+func load_term_mappings() {
+	fileBytes, err := ioutil.ReadFile("multi_meaning_terms.txt")
+	if err != nil {
+		panic(err)
+	}
+
+	terms_map = make(map[string][]string)
+
+	multi_meaning_terms := strings.Split(string(fileBytes), "\n")
+	for _, entry := range multi_meaning_terms {
+		term_meanings := strings.Split(entry, ":")
+		if len(term_meanings) != 2 {
+			// Expected term : <comma-separated meanings>
+			panic(fmt.Errorf("incorrect term-map: %s", entry))
+		}
+
+		term := strings.TrimSpace(strings.ToLower(term_meanings[0]))
+		meanings := strings.Split(strings.ToLower(term_meanings[1]), ",")
+		terms_map[term] = meanings
+		fmt.Printf("Added term-map %s => %s\n", term, term_meanings[1])
+	}
+}
+
 func Parse_database(db Schema_db, filepath string) {
 	db.Parse_db(filepath)
+	load_term_mappings()
 
 	/*
 	 * Fix optimize_families:
@@ -211,28 +238,97 @@ func optimize_families(families []T_families) {
 }
 
 type Query_response struct {
-	Family      string
-	Pid         string
-	Port_range  string
-	Lane_speeds string
-	Property    string
-	Value       string
+	Family           string
+	Pid              string
+	Port_range       string
+	Lane_speeds      string
+	Property         string
+	Value            string
+	Property_matched bool
+	Value_matched    bool
 }
 
-func check_match(family string, pid string, query []string,
-	properties map[string]interface{}) (props []string, matched bool) {
+/*
+ * Maintain whether property-name matched or the value matched in the
+ * query
+ */
+type matched_properties struct {
+	property       string
+	property_match bool
+	value_match    bool
+}
 
-	var matched_props []string
-	for _, keyword := range query {
-		for prop, value := range properties {
-			value_array := strings.Split(value.(string), ",")
+func does_term_match(keyword string, term string) (bool, string) {
+	/* First check if the term itself matches */
+	if strings.EqualFold(keyword, term) {
+		return true, term
+	}
+
+	/* Check if any of the other synonyms of the term match */
+	term = strings.ToLower(term)
+	if meanings, exist := terms_map[term]; exist {
+		for _, meaning := range meanings {
+			meaning = strings.TrimSpace(meaning)
+			if strings.EqualFold(keyword, meaning) {
+				return true, meaning
+			}
+		}
+	}
+
+	return false, ""
+
+}
+func check_match(family string, pid string, query []string,
+	properties map[string]interface{}) (matched_props []matched_properties, matched bool) {
+
+	var prop_name_matched bool = false
+	var value_matched bool = false
+
+	for prop, value := range properties {
+		prop = strings.TrimSpace(prop)
+		// Values can be organized as <value> | Comments
+		value_extract := strings.Split(value.(string), "|")[0]
+		value_array := strings.Split(value_extract, ",")
+		prop_name_matched = false
+		value_matched = false
+
+		for _, keyword := range query {
+			keyword = strings.TrimSpace(keyword)
+			if len(keyword) == 0 {
+				continue
+			}
+
 			for _, sub_value := range value_array {
-				if keyword == sub_value || keyword == prop {
-					fmt.Printf("Matched keyword %s with %s=%s in %s/%s\n",
-						keyword, prop, value, family, pid)
-					matched_props = append(matched_props, prop)
+				sub_value = strings.TrimSpace(sub_value)
+
+				/*
+				 * For multi-word value or property-name, hyphenate them
+				 */
+				sub_value = strings.Replace(sub_value, " ", "-", -1)
+				prop_to_match := strings.Replace(prop, " ", "-", -1)
+
+				matched, with_term := does_term_match(keyword, sub_value)
+				if matched {
+					fmt.Printf("Matched value %s with %s=%s(%s) in %s/%s\n",
+						keyword, prop, value, with_term, family, pid)
+					value_matched = true
+				}
+
+				matched, with_term = does_term_match(keyword, prop_to_match)
+				if matched {
+					fmt.Printf("Matched property %s with %s(%s)=%s in %s/%s\n",
+						keyword, prop, with_term, value, family, pid)
+					prop_name_matched = true
 				}
 			}
+		}
+
+		if prop_name_matched || value_matched {
+			matched_prop := new(matched_properties)
+			matched_prop.property = prop
+			matched_prop.property_match = prop_name_matched
+			matched_prop.value_match = value_matched
+			matched_props = append(matched_props, *matched_prop)
 		}
 	}
 
@@ -262,10 +358,12 @@ func query_lanes(family string, pid string, prange string,
 				var response = new(Query_response)
 				response.Family = family
 				response.Pid = pid
-				response.Property = prop
+				response.Property = prop.property
 				response.Port_range = prange
 				response.Lane_speeds = strings.Join(lane.Speeds, ",")
-				response.Value = lane.Properties[prop].(string)
+				response.Value = lane.Properties[prop.property].(string)
+				response.Property_matched = prop.property_match
+				response.Value_matched = prop.value_match
 				responses = append(responses, *response)
 			}
 		}
@@ -285,9 +383,11 @@ func query_ranges(family string, pid string, query []string, ranges []T_port_ran
 				var response = new(Query_response)
 				response.Family = family
 				response.Pid = pid
-				response.Property = prop
+				response.Property = prop.property
 				response.Port_range = port_range_to_string(&prange)
-				response.Value = prange.Properties[prop].(string)
+				response.Value = prange.Properties[prop.property].(string)
+				response.Property_matched = prop.property_match
+				response.Value_matched = prop.value_match
 				responses = append(responses, *response)
 			}
 		}
@@ -314,14 +414,16 @@ func query_pids(family string, pids []T_pids, query []string) ([]Query_response,
 		//fmt.Printf("Checking keywords:%s for pid:%s\n", strings.Join(query, ","), pid_name)
 		if matched {
 			for _, prop := range props {
-				if prop == "name" || prop == "nickname" {
+				if strings.EqualFold(prop.property, "name") || strings.EqualFold(prop.property, "Internal name") {
 					matched_pids = append(matched_pids, pid_name)
 				} else {
 					var response = new(Query_response)
 					response.Family = family
 					response.Pid = pid_name
-					response.Property = prop
-					response.Value = pid.Properties[prop].(string)
+					response.Property = prop.property
+					response.Property_matched = prop.property_match
+					response.Value_matched = prop.value_match
+					response.Value = pid.Properties[prop.property].(string)
 					responses = append(responses, *response)
 				}
 			}
@@ -335,6 +437,59 @@ func query_pids(family string, pids []T_pids, query []string) ([]Query_response,
 	return responses, matched_pids
 }
 
+func prefer_both_prop_and_value_matches(responses []Query_response) []Query_response {
+	var filtered_responses []Query_response
+
+	for i := range responses {
+		if responses[i].Property_matched && responses[i].Value_matched {
+			filtered_responses = append(filtered_responses, responses[i])
+		}
+	}
+
+	if len(filtered_responses) > 0 {
+		return filtered_responses
+	} else {
+		return responses
+	}
+}
+
+/*
+ * If we have a value1 matching the query with prop1=value1, then remove
+ * all other matches where prop1=value2, prop1=value2 and so on.
+ */
+func filter_unique_value_matches(responses []Query_response) []Query_response {
+	var value_matches []Query_response
+	var filtered_responses []Query_response
+
+	/* First collect all value matches */
+	for i := range responses {
+		//fmt.Printf("filter_unique_value_matches: Scanning %s=>%s\n",
+		//	responses[i].Property, responses[i].Value)
+		if responses[i].Value_matched {
+			value_matches = append(value_matches, responses[i])
+		}
+	}
+
+	/* Now scan for all responses and find properties that matched but
+	 * with different value
+	 */
+	for i := range responses {
+		var include bool = true
+		for v := range value_matches {
+			if responses[i].Property == value_matches[v].Property &&
+				!responses[i].Value_matched {
+				include = false
+				break
+			}
+		}
+
+		if include {
+			filtered_responses = append(filtered_responses, responses[i])
+		}
+	}
+	return filtered_responses
+}
+
 func Query_database(query []string, db Schema_db) (responses []Query_response,
 	matched_families []string, matched_pids []string) {
 
@@ -344,14 +499,16 @@ func Query_database(query []string, db Schema_db) (responses []Query_response,
 			family.Properties)
 		if matched {
 			for _, prop := range props {
-				if prop == "name" {
+				if prop.property == "name" {
 					matched_families = append(matched_families, family_name)
 				} else {
 					var response = new(Query_response)
 					response.Family = family_name
 					response.Pid = ""
-					response.Property = prop
-					response.Value = family.Properties[prop].(string)
+					response.Property = prop.property
+					response.Property_matched = prop.property_match
+					response.Value_matched = prop.value_match
+					response.Value = family.Properties[prop.property].(string)
 					responses = append(responses, *response)
 				}
 			}
@@ -386,6 +543,19 @@ func Query_database(query []string, db Schema_db) (responses []Query_response,
 			filtered_responses = append(filtered_responses, response)
 		}
 	}
+
+	/*
+	 * If a query matched both the property-name and one of its specific values,
+	 * then filter out all entries where same property has a different value
+	 */
+	filtered_responses = filter_unique_value_matches(filtered_responses)
+
+	/*
+	 * If a query matched both property-name and one of its values, then
+	 * prefer only those both match responses
+	 */
+	filtered_responses = prefer_both_prop_and_value_matches(filtered_responses)
+
 	return filtered_responses, matched_families, matched_pids
 }
 
@@ -455,7 +625,7 @@ func Dump_db(db Schema_db) {
 
 func Get_family_info(db Schema_db, family_name string) (response string) {
 	for _, family := range db.Get_families() {
-		if family.Properties["name"].(string) == family_name {
+		if strings.EqualFold(family.Properties["name"].(string), family_name) {
 			response = Dump_family(&family)
 		}
 	}
@@ -465,8 +635,8 @@ func Get_family_info(db Schema_db, family_name string) (response string) {
 func Get_pid_info(db Schema_db, pid_name string) (response string) {
 	for _, family := range db.Get_families() {
 		for _, pid := range family.Pids {
-			if pid_name == pid.Properties["name"] ||
-				pid_name == pid.Properties["nickname"] {
+			if strings.EqualFold(pid_name, pid.Properties["name"].(string)) ||
+				strings.EqualFold(pid_name, pid.Properties["Internal name"].(string)) {
 				response = Dump_pid(&pid)
 			}
 		}

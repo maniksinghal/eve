@@ -4,7 +4,7 @@
             "family_code" : "NCS5500",
             "pids" : {
                 "NCS-55A1-24Q6H-S" : {
-                    "nickname" : "Turin-CR",
+                    "Internal name" : "Turin-CR",
                     "node-type" : "fixed-chassis",
                     "NPU" : "Jericho+",
                     "OS" : "exr",
@@ -69,7 +69,7 @@
                     }
                 },
                 "NC55-32T16Q4H-A" : {
-                    "nickname" : "Potenza+10C",
+                    "Internal name" : "Potenza+10C",
                     "chassis-type" : "LC",
                     "NPU" : "Jericho+",
                     "OS" : "exr",
@@ -124,7 +124,7 @@
             "family-code" : "NCS540L",
             "pids" : {
                 "N540-12Z20G-SYS-A" : {
-                    "nickname" : "Denali-AC",
+                    "Internal name" : "Denali-AC",
                     "node-type" : "fixed-chassis",
                     "NPU" : "Qumran-AX",
                     "OS" : "lindt",
