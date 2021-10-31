@@ -259,6 +259,7 @@ type matched_properties struct {
 }
 
 func does_term_match(keyword string, term string) (bool, string) {
+
 	/* First check if the term itself matches */
 	if strings.EqualFold(keyword, term) {
 		return true, term
@@ -269,6 +270,7 @@ func does_term_match(keyword string, term string) (bool, string) {
 	if meanings, exist := terms_map[term]; exist {
 		for _, meaning := range meanings {
 			meaning = strings.TrimSpace(meaning)
+
 			if strings.EqualFold(keyword, meaning) {
 				return true, meaning
 			}
@@ -292,6 +294,8 @@ func check_match(family string, pid string, query []string,
 		prop_name_matched = false
 		value_matched = false
 
+		prop_to_match := strings.Replace(prop, " ", "-", -1)
+
 		for _, keyword := range query {
 			keyword = strings.TrimSpace(keyword)
 			if len(keyword) == 0 {
@@ -305,21 +309,21 @@ func check_match(family string, pid string, query []string,
 				 * For multi-word value or property-name, hyphenate them
 				 */
 				sub_value = strings.Replace(sub_value, " ", "-", -1)
-				prop_to_match := strings.Replace(prop, " ", "-", -1)
 
 				matched, with_term := does_term_match(keyword, sub_value)
 				if matched {
 					fmt.Printf("Matched value %s with %s=%s(%s) in %s/%s\n",
-						keyword, prop, value, with_term, family, pid)
+						keyword, prop, sub_value, with_term, family, pid)
 					value_matched = true
+					break
 				}
+			}
 
-				matched, with_term = does_term_match(keyword, prop_to_match)
-				if matched {
-					fmt.Printf("Matched property %s with %s(%s)=%s in %s/%s\n",
-						keyword, prop, with_term, value, family, pid)
-					prop_name_matched = true
-				}
+			matched, with_term := does_term_match(keyword, prop_to_match)
+			if matched {
+				fmt.Printf("Matched property %s with %s(%s)=%s in %s/%s\n",
+					keyword, prop, with_term, value, family, pid)
+				prop_name_matched = true
 			}
 		}
 
@@ -454,6 +458,190 @@ func prefer_both_prop_and_value_matches(responses []Query_response) []Query_resp
 }
 
 /*
+ * If a term matches both a property-name and a value-name, then
+ * prefer results with property-name.
+ */
+func prefer_property_over_value(responses []Query_response) []Query_response {
+	var filtered_responses []Query_response
+
+	var property_matches []Query_response
+	for i := range responses {
+		if responses[i].Property_matched && !responses[i].Value_matched {
+			property_matches = append(property_matches, responses[i])
+		}
+	}
+
+	if len(property_matches) == 0 {
+		/* Only value matches */
+		return responses
+	}
+
+	for i := range responses {
+		include := true
+		if responses[i].Value_matched && !responses[i].Property_matched {
+			for j := range property_matches {
+				for _, res := range strings.Split(responses[i].Value, ",") {
+					if strings.EqualFold(property_matches[j].Property, res) {
+						fmt.Printf("Excluding result for value %s=%s/%s/%s as it also matches the property %s=%s\n",
+							responses[i].Property, res, responses[i].Pid, responses[i].Family,
+							property_matches[j].Property, property_matches[j].Value)
+						include = false
+						break
+					}
+				}
+
+				if !include {
+					break
+				}
+			}
+		}
+
+		if include {
+			filtered_responses = append(filtered_responses, responses[i])
+		}
+	}
+
+	return filtered_responses
+}
+
+/*
+ * If some stronger matches are present, then don't print
+ * generic matches (like family=fretta)
+ */
+func remove_generic_matches(responses []Query_response) []Query_response {
+
+	var filtered_responses []Query_response
+	for i := range responses {
+		if !strings.EqualFold("family", responses[i].Property) {
+			filtered_responses = append(filtered_responses, responses[i])
+		} else {
+			fmt.Printf("Found generic result %s/%s. May remove below\n",
+				responses[i].Pid, responses[i].Family)
+		}
+	}
+
+	if len(filtered_responses) > 0 {
+		// Found some stronger matches
+		return filtered_responses
+	} else {
+		return responses
+	}
+}
+
+/*
+ * As properties are promoted from children to parents, both start showing
+ * results. Remove duplicate results from children and show only at parent
+ * level
+ */
+func remove_duplicate_matches(responses []Query_response) []Query_response {
+
+	var filtered_responses []Query_response
+
+	/* First find results only with port-range properties */
+	var port_range_props []Query_response
+	for i, _ := range responses {
+		if len(responses[i].Lane_speeds) == 0 &&
+			len(responses[i].Port_range) > 0 {
+			port_range_props = append(port_range_props, responses[i])
+		}
+	}
+	fmt.Printf("Built port-range properties of length %d\n", len(port_range_props))
+
+	/* Now remove results which match lane-range properties */
+	for i, _ := range responses {
+		include := true
+		if len(responses[i].Lane_speeds) > 0 {
+			for j, _ := range port_range_props {
+				if responses[i].Port_range == port_range_props[j].Port_range &&
+					responses[i].Property == port_range_props[j].Property &&
+					responses[i].Pid == port_range_props[j].Pid &&
+					responses[i].Family == port_range_props[j].Family {
+					include = false
+					fmt.Printf("Excluding %s/%s/%s/%s. Already included in port-range\n",
+						responses[i].Property, responses[i].Lane_speeds,
+						responses[i].Port_range, responses[i].Pid)
+					break
+				}
+			}
+
+		}
+
+		if include {
+			filtered_responses = append(filtered_responses, responses[i])
+		}
+	}
+
+	responses = filtered_responses
+
+	/* Find results only with PID properties */
+	var pid_responses []Query_response
+	for i, _ := range responses {
+		if len(responses[i].Port_range) == 0 &&
+			len(responses[i].Pid) > 0 {
+			pid_responses = append(pid_responses, responses[i])
+		}
+	}
+
+	/* Now remove results which match port-range properties */
+	filtered_responses = nil
+	for i, _ := range responses {
+		include := true
+		if len(responses[i].Port_range) > 0 {
+			for j, _ := range pid_responses {
+				if responses[i].Property == pid_responses[j].Property &&
+					responses[i].Pid == pid_responses[j].Pid &&
+					responses[i].Family == pid_responses[j].Family {
+					include = false
+					fmt.Printf("Excluding %s/%s/%s. Already included in Pid\n",
+						responses[i].Property, responses[i].Port_range,
+						responses[i].Pid)
+					break
+				}
+			}
+		}
+
+		if include {
+			filtered_responses = append(filtered_responses, responses[i])
+		}
+	}
+
+	responses = filtered_responses
+
+	/* Find results only with Family properties */
+	var family_responses []Query_response
+	for i, _ := range responses {
+		if len(responses[i].Pid) == 0 &&
+			len(responses[i].Family) > 0 {
+			pid_responses = append(family_responses, responses[i])
+		}
+	}
+
+	/* Now remove results which match PID properties */
+	filtered_responses = nil
+	for i, _ := range responses {
+		include := true
+		if len(responses[i].Pid) > 0 {
+			for j, _ := range family_responses {
+				if responses[i].Property == pid_responses[j].Property &&
+					responses[i].Family == pid_responses[j].Family {
+					include = false
+					fmt.Printf("Excluding %s/%s/%s. Already included in family\n",
+						responses[i].Property, responses[i].Pid,
+						responses[i].Family)
+					break
+				}
+			}
+		}
+
+		if include {
+			filtered_responses = append(filtered_responses, responses[i])
+		}
+	}
+
+	return filtered_responses
+}
+
+/*
  * If we have a value1 matching the query with prop1=value1, then remove
  * all other matches where prop1=value2, prop1=value2 and so on.
  */
@@ -555,6 +743,24 @@ func Query_database(query []string, db Schema_db) (responses []Query_response,
 	 * prefer only those both match responses
 	 */
 	filtered_responses = prefer_both_prop_and_value_matches(filtered_responses)
+
+	/*
+	 * Remove duplicate matches (properties matching both parent and children)
+	 */
+	filtered_responses = remove_duplicate_matches(filtered_responses)
+
+	/*
+	 * When stronger results are available, remove generic results
+	 * like family=fretta
+	 */
+	filtered_responses = remove_generic_matches(filtered_responses)
+
+	/*
+	 * If a term matches both a property-name and some value-name of a different
+	 * property as well then prefer property-name (useful especially for
+	 * keywords like PHY/NPU which can be both a property and a value)
+	 */
+	filtered_responses = prefer_property_over_value(filtered_responses)
 
 	return filtered_responses, matched_families, matched_pids
 }

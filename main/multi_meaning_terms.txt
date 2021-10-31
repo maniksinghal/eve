@@ -6,8 +6,8 @@ old-castle : oldcastle, oc, oldcastle-cr, old-castle-cr, oc-cr, oldcastlecr
 rp-e : rpe
 rp2-e : rp2e, rp2-e
 potenza-mod : potenzamod, mod-as
-vigor-base : vigor-100-base vigor-100
-potenza-10c : potenza-+10c pot-10c pot-+10c
+vigor-base : vigor-100-base, vigor-100
+potenza-10c : potenza-+10c, pot-10c, pot-+10c, pot10c, potenza10c
 rainbow : rain-bow
 crowfoot : crow-foot
 bearfoot : bear-foot
@@ -23,3 +23,10 @@ jericho2c : j2c, jericho
 class-c : class-b
 class-b : class-c
 timestamper : timestamping
+re-timer : retimer
+npu : np, asic
+VSC8258 : vitesse, vts
+VSC8582 : vitesse, vts
+es200 : apm, macom
+metadx1 : mdx, meta-dx, meta-dx1
+x120 : apm, macom

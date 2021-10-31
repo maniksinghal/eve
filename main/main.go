@@ -226,6 +226,7 @@ func main() {
 		reader := bufio.NewReader(os.Stdin)
 		for {
 			fmt.Printf("query> ")
+
 			text, _ := reader.ReadString('\n')
 			text = strings.TrimSuffix(text, "\n")
 			if text == "quit" {
