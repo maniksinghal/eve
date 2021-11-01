@@ -58,7 +58,11 @@ func load_term_mappings() {
 }
 
 func Parse_database(db Schema_db, filepath string) {
-	db.Parse_db(filepath)
+	err := db.Parse_db(filepath)
+	if err != nil {
+		panic(err)
+	}
+
 	load_term_mappings()
 
 	/*
@@ -641,6 +645,61 @@ func remove_duplicate_matches(responses []Query_response) []Query_response {
 	return filtered_responses
 }
 
+func is_empty_response(response Query_response) bool {
+	var empty_responses []string = []string{"", "NA"}
+
+	for e := range empty_responses {
+		if strings.EqualFold(response.Value, empty_responses[e]) {
+			return true
+		}
+	}
+	return false
+}
+
+/*
+ * If some property matches with a valid value, then filter out the matches
+ * where the same property has NA/empty values
+ */
+func remove_empty_values(responses []Query_response) []Query_response {
+	var filtered_responses []Query_response
+	var valid_match_properties []string
+
+	/* Make list of valid responses */
+	for i := range responses {
+		if !is_empty_response(responses[i]) {
+			valid_match_properties = append(valid_match_properties, responses[i].Property)
+		}
+	}
+
+	/*
+	 * Scan through responses and check for empty values which have a valid
+	 * property value as well
+	 */
+	for i := range responses {
+		if is_empty_response(responses[i]) {
+			valid_value_match_exists := false
+			for v := range valid_match_properties {
+				if strings.EqualFold(responses[i].Property, valid_match_properties[v]) {
+					fmt.Printf("Excluding %s=%s/%s/%s as a valid value for same property exists\n",
+						responses[i].Property, responses[i].Value,
+						responses[i].Pid, responses[i].Family)
+					valid_value_match_exists = true
+					break
+				}
+			}
+
+			if !valid_value_match_exists {
+				filtered_responses = append(filtered_responses, responses[i])
+			}
+		} else {
+			// valid value in property
+			filtered_responses = append(filtered_responses, responses[i])
+		}
+	}
+
+	return filtered_responses
+}
+
 /*
  * If we have a value1 matching the query with prop1=value1, then remove
  * all other matches where prop1=value2, prop1=value2 and so on.
@@ -761,6 +820,12 @@ func Query_database(query []string, db Schema_db) (responses []Query_response,
 	 * keywords like PHY/NPU which can be both a property and a value)
 	 */
 	filtered_responses = prefer_property_over_value(filtered_responses)
+
+	/*
+	 * If for some property, a valid result is matched, then remove the
+	 * other results having NA/empty values for the same property
+	 */
+	filtered_responses = remove_empty_values(filtered_responses)
 
 	return filtered_responses, matched_families, matched_pids
 }

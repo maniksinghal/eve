@@ -80,7 +80,7 @@ func check_pid_db_query(query string, sender string, db schema_db.Schema_db) (re
 		// Response value can be in <value> | <Comment> form
 		value_comment := strings.Split(resp.Value, "|")
 		value := value_comment[0]
-		this_resp := fmt.Sprintf("The %s family %s card uses %s=%s",
+		this_resp := fmt.Sprintf("The %s family %s card has %s=%s",
 			resp.Family, resp.Pid, resp.Property, value)
 		if len(value_comment) > 1 {
 			// Comment also present

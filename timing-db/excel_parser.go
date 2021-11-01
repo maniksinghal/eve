@@ -295,6 +295,59 @@ func (db *Excel_db) Parse_db(filepath string) error {
 		}
 	}
 
+	/*
+	 * Now parse the Features sheet
+	 */
+	keys = []string{"PID", "Internal name"}
+	sheet_entries, err = db.parse_sheet("Features", keys)
+	if err != nil {
+		fmt.Println(err.Error())
+		f.Close()
+		return err
+	}
+
+	for _, row := range sheet_entries {
+		pid := row.keys["PID"]
+		fmt.Printf("Scanning features sheet for PID %s\n", pid)
+
+		if pid == "" {
+			return fmt.Errorf("could not find PID in the entry in sheet Features, row:%s", row.properties["_row_in_sheet"])
+		}
+
+		if pid == "REST" {
+			// Reached end of list, mark for each feature
+			for prop, value := range row.properties {
+				for f := range db.families {
+					family := &db.families[f]
+					for p := range family.Pids {
+						pid_obj := &family.Pids[p]
+						_, exists := pid_obj.Properties[prop]
+						if !exists {
+							pid_obj.Properties[prop] = value
+							fmt.Printf("Setting feature default for %s, %s=%s\n",
+								pid_obj.Properties["Internal name"], prop, value)
+						}
+					}
+				}
+			}
+			continue
+		}
+
+		pid_obj := db.get_pid_from_pid_name(pid)
+		if pid_obj == nil {
+			return fmt.Errorf("could not find PID %s in General sheet (referenced in row %s of Features sheet",
+				pid, row.properties["_row_in_sheet"])
+		}
+
+		for prop, value := range row.properties {
+			if len(value) > 0 {
+				pid_obj.Properties[prop] = value
+				fmt.Printf("Setting for %s feature %s=%s\n", pid_obj.Properties["Internal name"],
+					prop, value)
+			}
+		}
+	}
+
 	f.Close()
 	return nil
 }

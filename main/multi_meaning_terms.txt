@@ -30,3 +30,6 @@ VSC8582 : vitesse, vts
 es200 : apm, macom
 metadx1 : mdx, meta-dx, meta-dx1
 x120 : apm, macom
+apts : virtual-port, vp
+delay-asymmetry: asymmetry
+multi-profile : multiprofile
