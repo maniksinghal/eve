@@ -2,6 +2,7 @@ package timing_db_schema
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -10,6 +11,7 @@ import (
 
 type Excel_db struct {
 	file_handle *excelize.File
+	file_name   string
 	families    []T_families
 }
 
@@ -31,6 +33,10 @@ func (db *Excel_db) Get_families() []T_families {
 	return db.families
 }
 
+func (db *Excel_db) Get_db_source_file() string {
+	return db.file_name
+}
+
 func (db *Excel_db) parse_sheet(sheet_name string, keys []string) (
 	entries []sheet_entry, err error) {
 
@@ -39,11 +45,11 @@ func (db *Excel_db) parse_sheet(sheet_name string, keys []string) (
 	var num_rows int = 0
 	var num_cols int = 0
 
-	fmt.Printf("Parsing sheet %s\n", sheet_name)
+	log.Printf("Parsing sheet %s\n", sheet_name)
 
 	sheet_map, err := db.file_handle.GetRows(sheet_name)
 	if err != nil {
-		fmt.Println("Error opening sheet")
+		log.Println("Error opening sheet")
 		return nil, fmt.Errorf("could not parse sheet %s", sheet_name)
 	}
 
@@ -64,13 +70,13 @@ func (db *Excel_db) parse_sheet(sheet_name string, keys []string) (
 			total_columns += 1
 			col_names[col] = col_name
 			col_indexes[col_name] = col
-			fmt.Printf("Got column %s\n", col_name)
+			log.Printf("Got column %s\n", col_name)
 			col += 1
 		} else {
 			break
 		}
 	}
-	fmt.Printf("Found total columns %d\n", total_columns)
+	log.Printf("Found total columns %d\n", total_columns)
 
 	/*
 	 * Verify the keys passed exist in the column names
@@ -118,7 +124,7 @@ func (db *Excel_db) parse_sheet(sheet_name string, keys []string) (
 		if !exists || value != "ignore" {
 			sheet_entries = append(sheet_entries, *entry)
 		} else {
-			fmt.Printf("Ignoring entry at row %d in sheet %s\n",
+			log.Printf("Ignoring entry at row %d in sheet %s\n",
 				(row + 1), sheet_name)
 		}
 		row += 1
@@ -127,7 +133,7 @@ func (db *Excel_db) parse_sheet(sheet_name string, keys []string) (
 	return sheet_entries, nil
 }
 
-func (db *Excel_db) get_pid_from_pid_name(pid string) (pid_obj *T_pids) {
+func (db *Excel_db) Get_pid_from_pid_name(pid string) (pid_obj *T_pids) {
 	for family_i := range db.families {
 		for pid_i, pid_obj := range db.families[family_i].Pids {
 			if pid_obj.Properties["name"] == pid {
@@ -163,14 +169,15 @@ func (db *Excel_db) Parse_db(filepath string) error {
 	var families []T_families
 	f, err := excelize.OpenFile(filepath)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return err
 	}
 	db.file_handle = f
+	db.file_name = filepath
 
 	sheet_list := f.GetSheetList()
 	for _, sheet := range sheet_list {
-		fmt.Println("Got sheet " + sheet)
+		log.Println("Got sheet " + sheet)
 	}
 
 	keys := []string{"PID"}
@@ -200,7 +207,7 @@ func (db *Excel_db) Parse_db(filepath string) error {
 
 		if family_object == nil {
 			// New family found in row, crate an object
-			fmt.Printf("Created new family %s\n", family_name)
+			log.Printf("Created new family %s\n", family_name)
 			family_object = new(T_families)
 			family_object.Properties = make(map[string]interface{})
 			family_object.Properties["name"] = family_name
@@ -220,7 +227,7 @@ func (db *Excel_db) Parse_db(filepath string) error {
 
 		family_object.Pids = append(family_object.Pids, *pid_obj)
 
-		fmt.Printf("Family %s, PID:%s, total pids:%d\n", family_name, pid,
+		log.Printf("Family %s, PID:%s, total pids:%d\n", family_name, pid,
 			len(family_object.Pids))
 
 		if new_family {
@@ -231,7 +238,7 @@ func (db *Excel_db) Parse_db(filepath string) error {
 	/*
 	 * Now parse over port-ranges
 	 */
-	keys = []string{"PID", "Port range", "Speeds", "Internal name"}
+	keys = []string{"PID", "Port range", "Port-type", "Speeds", "Internal name"}
 	sheet_entries, err = db.parse_sheet("Port information", keys)
 	if err != nil {
 		f.Close()
@@ -245,6 +252,9 @@ func (db *Excel_db) Parse_db(filepath string) error {
 		pid := row.keys["PID"]
 		port_range := row.keys["Port range"]
 		speed := row.keys["Speeds"]
+		port_type := row.keys["Port-type"]
+		log.Printf("Parsing row %s, pid:%s\n", row.properties["_row_in_sheet"],
+			pid)
 
 		/*
 		 * Validate that port-range should be in the order of M-N
@@ -259,7 +269,7 @@ func (db *Excel_db) Parse_db(filepath string) error {
 			return fmt.Errorf("could not find PID/Port range or Speed in the entry in sheet Port information, row:%s", row.properties["_row_in_sheet"])
 		}
 
-		pid_obj := db.get_pid_from_pid_name(pid)
+		pid_obj := db.Get_pid_from_pid_name(pid)
 		if pid_obj == nil {
 			return fmt.Errorf("could not find PID %s in General sheet (referenced in row %s of Port information sheet",
 				pid, row.properties["_row_in_sheet"])
@@ -273,10 +283,12 @@ func (db *Excel_db) Parse_db(filepath string) error {
 			pr_obj.Stop, _ = strconv.Atoi(strings.Split(port_range, "-")[1])
 			pr_obj.Properties = make(map[string]interface{})
 			pr_obj.Lane_speeds = make([]T_lane_speed, 0)
-			fmt.Printf("Creating new port range for %s: %d-%d\n",
+			log.Printf("Creating new port range for %s: %d-%d\n",
 				pid, pr_obj.Start, pr_obj.Stop)
+
+			pr_obj.Properties["Port-type"] = port_type
 		} else {
-			fmt.Printf("Found existing port-range for %s, while scanning %s\n",
+			log.Printf("Found existing port-range for %s, while scanning %s\n",
 				pid, row.properties["_row_in_sheet"])
 		}
 
@@ -301,14 +313,14 @@ func (db *Excel_db) Parse_db(filepath string) error {
 	keys = []string{"PID", "Internal name"}
 	sheet_entries, err = db.parse_sheet("Features", keys)
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println(err.Error())
 		f.Close()
 		return err
 	}
 
 	for _, row := range sheet_entries {
 		pid := row.keys["PID"]
-		fmt.Printf("Scanning features sheet for PID %s\n", pid)
+		log.Printf("Scanning features sheet for PID %s\n", pid)
 
 		if pid == "" {
 			return fmt.Errorf("could not find PID in the entry in sheet Features, row:%s", row.properties["_row_in_sheet"])
@@ -324,7 +336,7 @@ func (db *Excel_db) Parse_db(filepath string) error {
 						_, exists := pid_obj.Properties[prop]
 						if !exists {
 							pid_obj.Properties[prop] = value
-							fmt.Printf("Setting feature default for %s, %s=%s\n",
+							log.Printf("Setting feature default for %s, %s=%s\n",
 								pid_obj.Properties["Internal name"], prop, value)
 						}
 					}
@@ -333,7 +345,7 @@ func (db *Excel_db) Parse_db(filepath string) error {
 			continue
 		}
 
-		pid_obj := db.get_pid_from_pid_name(pid)
+		pid_obj := db.Get_pid_from_pid_name(pid)
 		if pid_obj == nil {
 			return fmt.Errorf("could not find PID %s in General sheet (referenced in row %s of Features sheet",
 				pid, row.properties["_row_in_sheet"])
@@ -342,7 +354,7 @@ func (db *Excel_db) Parse_db(filepath string) error {
 		for prop, value := range row.properties {
 			if len(value) > 0 {
 				pid_obj.Properties[prop] = value
-				fmt.Printf("Setting for %s feature %s=%s\n", pid_obj.Properties["Internal name"],
+				log.Printf("Setting for %s feature %s=%s\n", pid_obj.Properties["Internal name"],
 					prop, value)
 			}
 		}

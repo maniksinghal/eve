@@ -5,9 +5,9 @@
  * rows, err := f.GetRows("Sheet1")
  *    for _, row := range rows {
         for _, colCell := range row {
-            fmt.Print(colCell, "\t")
+            log.Print(colCell, "\t")
         }
-        fmt.Println()
+        log.Println()
     }
 
 	Get active sheet index:

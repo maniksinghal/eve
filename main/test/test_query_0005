@@ -1,0 +1,9 @@
+Where is Synce clock recovered on Acadia
+The Bigbend family card N540X-12Z16G-SYS-A (Acadia - AC) has **Synce clock recovery** = **PHY** on ports 0-3
+The Bigbend family card N540X-12Z16G-SYS-A (Acadia - AC) has **Synce clock recovery** = **NPU** on ports 4-15
+The Bigbend family card N540X-12Z16G-SYS-A (Acadia - AC) has **Synce clock recovery** = **NPU** on ports 16-19
+The Bigbend family card N540X-12Z16G-SYS-A (Acadia - AC) has **Synce clock recovery** = **NPU** on ports 20-27
+The Bigbend family card N540X-12Z16G-SYS-D (Acadia - DC) has **Synce clock recovery** = **PHY** on ports 0-3
+The Bigbend family card N540X-12Z16G-SYS-D (Acadia - DC) has **Synce clock recovery** = **NPU** on ports 4-15
+The Bigbend family card N540X-12Z16G-SYS-D (Acadia - DC) has **Synce clock recovery** = **NPU** on ports 16-19
+The Bigbend family card N540X-12Z16G-SYS-D (Acadia - DC) has **Synce clock recovery** = **NPU** on ports 20-27

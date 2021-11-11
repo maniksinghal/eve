@@ -1,0 +1,5 @@
+Does peyto support class-C timing
+The Fretta family card NCS-55A2-MOD-SL (Peyto - non-SE (ctemp)) has **PTP performance** = **Class B**
+The Fretta family card NCS-55A2-MOD-HD-S (Peyto - HD (itemp)) has **PTP performance** = **Class B**
+The Fretta family card NCS-55A2-MOD-HX-S (Peyto - (itemp Conformal)) has **PTP performance** = **Class B**
+The Fretta family card NC55A2-MOD-SE-H-S (Peyto - (itemp)) has **PTP performance** = **Class B**

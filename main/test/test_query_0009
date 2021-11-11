@@ -1,0 +1,6 @@
+Is virtual PTP port supported on Peyto
+The Fretta family card NCS-55A2-MOD-SE-S (Peyto - SE (ctemp)) has **APTS** = **Feature supported**
+The Fretta family card NCS-55A2-MOD-SL (Peyto - non-SE (ctemp)) has **APTS** = **Feature supported**
+The Fretta family card NCS-55A2-MOD-HD-S (Peyto - HD (itemp)) has **APTS** = **Feature supported**
+The Fretta family card NCS-55A2-MOD-HX-S (Peyto - (itemp Conformal)) has **APTS** = **Feature supported**
+The Fretta family card NC55A2-MOD-SE-H-S (Peyto - (itemp)) has **APTS** = **Feature supported**

@@ -3,6 +3,7 @@ package timing_db_schema
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -30,6 +31,8 @@ type T_families struct {
 type Schema_db interface {
 	Parse_db(string) error
 	Get_families() []T_families
+	Get_db_source_file() string
+	Get_pid_from_pid_name(pid string) (pid_obj *T_pids)
 }
 
 var terms_map map[string][]string
@@ -52,8 +55,16 @@ func load_term_mappings() {
 
 		term := strings.TrimSpace(strings.ToLower(term_meanings[0]))
 		meanings := strings.Split(strings.ToLower(term_meanings[1]), ",")
+
+		// Ensure meanings were comma separated, instead of space-separated
+		for iter := range meanings {
+			if strings.Contains(strings.TrimSpace(meanings[iter]), " ") {
+				panic(fmt.Errorf("term %s - synonyms not comma-separated (%s)",
+					term, meanings[iter]))
+			}
+		}
 		terms_map[term] = meanings
-		fmt.Printf("Added term-map %s => %s\n", term, term_meanings[1])
+		log.Printf("Added term-map %s => %s\n", term, term_meanings[1])
 	}
 }
 
@@ -80,7 +91,7 @@ func optimize_port_ranges(ranges []T_port_range) {
 
 	for _, prange := range ranges {
 
-		fmt.Printf("Going to optimize range %d-%d\n", prange.Start, prange.Stop)
+		log.Printf("Going to optimize range %d-%d\n", prange.Start, prange.Stop)
 
 		/*
 		 * Now optimize this port-range
@@ -122,7 +133,7 @@ func optimize_port_ranges(ranges []T_port_range) {
 		 */
 		for prop, value := range common_lane_props {
 			prange.Properties[prop] = value
-			fmt.Printf("Promoted propery %s=%s to port-range %d-%d\n", prop,
+			log.Printf("Promoted propery %s=%s to port-range %d-%d\n", prop,
 				value, prange.Start, prange.Stop)
 		}
 	}
@@ -135,7 +146,7 @@ func optimize_pids(pids []T_pids) {
 
 	for _, pid := range pids {
 
-		fmt.Printf("Going to optimize %s\n", pid.Properties["name"])
+		log.Printf("Going to optimize %s\n", pid.Properties["name"])
 
 		optimize_port_ranges(pid.Port_ranges)
 
@@ -179,7 +190,7 @@ func optimize_pids(pids []T_pids) {
 		 */
 		for prop, value := range common_range_props {
 			pid.Properties[prop] = value
-			fmt.Printf("Promoted propery %s=%s to pid %s\n", prop,
+			log.Printf("Promoted propery %s=%s to pid %s\n", prop,
 				value, pid.Properties["name"])
 		}
 	}
@@ -235,7 +246,7 @@ func optimize_families(families []T_families) {
 		 */
 		for prop, value := range common_pid_props {
 			family.Properties[prop] = value
-			fmt.Printf("Promoted propery %s=%s to family %s\n", prop,
+			log.Printf("Promoted propery %s=%s to family %s\n", prop,
 				value, family.Properties["name"])
 		}
 	}
@@ -244,6 +255,7 @@ func optimize_families(families []T_families) {
 type Query_response struct {
 	Family           string
 	Pid              string
+	Nickname         string
 	Port_range       string
 	Lane_speeds      string
 	Property         string
@@ -294,6 +306,7 @@ func check_match(family string, pid string, query []string,
 		prop = strings.TrimSpace(prop)
 		// Values can be organized as <value> | Comments
 		value_extract := strings.Split(value.(string), "|")[0]
+		value_extract = strings.TrimSpace(value_extract)
 		value_array := strings.Split(value_extract, ",")
 		prop_name_matched = false
 		value_matched = false
@@ -316,7 +329,7 @@ func check_match(family string, pid string, query []string,
 
 				matched, with_term := does_term_match(keyword, sub_value)
 				if matched {
-					fmt.Printf("Matched value %s with %s=%s(%s) in %s/%s\n",
+					log.Printf("Matched value %s with %s=%s(%s) in %s/%s\n",
 						keyword, prop, sub_value, with_term, family, pid)
 					value_matched = true
 					break
@@ -325,7 +338,7 @@ func check_match(family string, pid string, query []string,
 
 			matched, with_term := does_term_match(keyword, prop_to_match)
 			if matched {
-				fmt.Printf("Matched property %s with %s(%s)=%s in %s/%s\n",
+				log.Printf("Matched property %s with %s(%s)=%s in %s/%s\n",
 					keyword, prop, with_term, value, family, pid)
 				prop_name_matched = true
 			}
@@ -351,7 +364,7 @@ func port_range_to_string(port_range *T_port_range) string {
 	var ids []string
 	ids = append(ids, strconv.Itoa((*port_range).Start))
 	ids = append(ids, strconv.Itoa((*port_range).Stop))
-	return strings.Join(ids, ",")
+	return strings.Join(ids, "-")
 
 }
 
@@ -419,10 +432,11 @@ func query_pids(family string, pids []T_pids, query []string) ([]Query_response,
 		pid_name := pid.Properties["name"].(string)
 		props, matched := check_match(family, pid_name, query,
 			pid.Properties)
-		//fmt.Printf("Checking keywords:%s for pid:%s\n", strings.Join(query, ","), pid_name)
+		//log.Printf("Checking keywords:%s for pid:%s\n", strings.Join(query, ","), pid_name)
 		if matched {
 			for _, prop := range props {
 				if strings.EqualFold(prop.property, "name") || strings.EqualFold(prop.property, "Internal name") {
+					log.Printf("PID matched for %s/%s\n", prop.property, pid_name)
 					matched_pids = append(matched_pids, pid_name)
 				} else {
 					var response = new(Query_response)
@@ -486,7 +500,7 @@ func prefer_property_over_value(responses []Query_response) []Query_response {
 			for j := range property_matches {
 				for _, res := range strings.Split(responses[i].Value, ",") {
 					if strings.EqualFold(property_matches[j].Property, res) {
-						fmt.Printf("Excluding result for value %s=%s/%s/%s as it also matches the property %s=%s\n",
+						log.Printf("Excluding result for value %s=%s/%s/%s as it also matches the property %s=%s\n",
 							responses[i].Property, res, responses[i].Pid, responses[i].Family,
 							property_matches[j].Property, property_matches[j].Value)
 						include = false
@@ -519,7 +533,7 @@ func remove_generic_matches(responses []Query_response) []Query_response {
 		if !strings.EqualFold("family", responses[i].Property) {
 			filtered_responses = append(filtered_responses, responses[i])
 		} else {
-			fmt.Printf("Found generic result %s/%s. May remove below\n",
+			log.Printf("Found generic result %s/%s. May remove below\n",
 				responses[i].Pid, responses[i].Family)
 		}
 	}
@@ -543,25 +557,25 @@ func remove_duplicate_matches(responses []Query_response) []Query_response {
 
 	/* First find results only with port-range properties */
 	var port_range_props []Query_response
-	for i, _ := range responses {
+	for i := range responses {
 		if len(responses[i].Lane_speeds) == 0 &&
 			len(responses[i].Port_range) > 0 {
 			port_range_props = append(port_range_props, responses[i])
 		}
 	}
-	fmt.Printf("Built port-range properties of length %d\n", len(port_range_props))
+	log.Printf("Built port-range properties of length %d\n", len(port_range_props))
 
 	/* Now remove results which match lane-range properties */
-	for i, _ := range responses {
+	for i := range responses {
 		include := true
 		if len(responses[i].Lane_speeds) > 0 {
-			for j, _ := range port_range_props {
+			for j := range port_range_props {
 				if responses[i].Port_range == port_range_props[j].Port_range &&
 					responses[i].Property == port_range_props[j].Property &&
 					responses[i].Pid == port_range_props[j].Pid &&
 					responses[i].Family == port_range_props[j].Family {
 					include = false
-					fmt.Printf("Excluding %s/%s/%s/%s. Already included in port-range\n",
+					log.Printf("Excluding %s/%s/%s/%s. Already included in port-range\n",
 						responses[i].Property, responses[i].Lane_speeds,
 						responses[i].Port_range, responses[i].Pid)
 					break
@@ -579,7 +593,7 @@ func remove_duplicate_matches(responses []Query_response) []Query_response {
 
 	/* Find results only with PID properties */
 	var pid_responses []Query_response
-	for i, _ := range responses {
+	for i := range responses {
 		if len(responses[i].Port_range) == 0 &&
 			len(responses[i].Pid) > 0 {
 			pid_responses = append(pid_responses, responses[i])
@@ -588,15 +602,15 @@ func remove_duplicate_matches(responses []Query_response) []Query_response {
 
 	/* Now remove results which match port-range properties */
 	filtered_responses = nil
-	for i, _ := range responses {
+	for i := range responses {
 		include := true
 		if len(responses[i].Port_range) > 0 {
-			for j, _ := range pid_responses {
+			for j := range pid_responses {
 				if responses[i].Property == pid_responses[j].Property &&
 					responses[i].Pid == pid_responses[j].Pid &&
 					responses[i].Family == pid_responses[j].Family {
 					include = false
-					fmt.Printf("Excluding %s/%s/%s. Already included in Pid\n",
+					log.Printf("Excluding %s/%s/%s. Already included in Pid\n",
 						responses[i].Property, responses[i].Port_range,
 						responses[i].Pid)
 					break
@@ -613,7 +627,7 @@ func remove_duplicate_matches(responses []Query_response) []Query_response {
 
 	/* Find results only with Family properties */
 	var family_responses []Query_response
-	for i, _ := range responses {
+	for i := range responses {
 		if len(responses[i].Pid) == 0 &&
 			len(responses[i].Family) > 0 {
 			pid_responses = append(family_responses, responses[i])
@@ -622,14 +636,14 @@ func remove_duplicate_matches(responses []Query_response) []Query_response {
 
 	/* Now remove results which match PID properties */
 	filtered_responses = nil
-	for i, _ := range responses {
+	for i := range responses {
 		include := true
 		if len(responses[i].Pid) > 0 {
-			for j, _ := range family_responses {
+			for j := range family_responses {
 				if responses[i].Property == pid_responses[j].Property &&
 					responses[i].Family == pid_responses[j].Family {
 					include = false
-					fmt.Printf("Excluding %s/%s/%s. Already included in family\n",
+					log.Printf("Excluding %s/%s/%s. Already included in family\n",
 						responses[i].Property, responses[i].Pid,
 						responses[i].Family)
 					break
@@ -646,7 +660,7 @@ func remove_duplicate_matches(responses []Query_response) []Query_response {
 }
 
 func is_empty_response(response Query_response) bool {
-	var empty_responses []string = []string{"", "NA"}
+	var empty_responses []string = []string{"", "NA", "Not supported"}
 
 	for e := range empty_responses {
 		if strings.EqualFold(response.Value, empty_responses[e]) {
@@ -680,7 +694,7 @@ func remove_empty_values(responses []Query_response) []Query_response {
 			valid_value_match_exists := false
 			for v := range valid_match_properties {
 				if strings.EqualFold(responses[i].Property, valid_match_properties[v]) {
-					fmt.Printf("Excluding %s=%s/%s/%s as a valid value for same property exists\n",
+					log.Printf("Excluding %s=%s/%s/%s as a valid value for same property exists\n",
 						responses[i].Property, responses[i].Value,
 						responses[i].Pid, responses[i].Family)
 					valid_value_match_exists = true
@@ -710,7 +724,7 @@ func filter_unique_value_matches(responses []Query_response) []Query_response {
 
 	/* First collect all value matches */
 	for i := range responses {
-		//fmt.Printf("filter_unique_value_matches: Scanning %s=>%s\n",
+		//log.Printf("filter_unique_value_matches: Scanning %s=>%s\n",
 		//	responses[i].Property, responses[i].Value)
 		if responses[i].Value_matched {
 			value_matches = append(value_matches, responses[i])
@@ -737,10 +751,10 @@ func filter_unique_value_matches(responses []Query_response) []Query_response {
 	return filtered_responses
 }
 
-func Query_database(query []string, db Schema_db) (responses []Query_response,
+func Query_database(query []string, db *Schema_db) (responses []Query_response,
 	matched_families []string, matched_pids []string) {
 
-	for _, family := range db.Get_families() {
+	for _, family := range (*db).Get_families() {
 		family_name := family.Properties["name"].(string)
 		props, matched := check_match(family_name, "all", query,
 			family.Properties)
@@ -766,28 +780,39 @@ func Query_database(query []string, db Schema_db) (responses []Query_response,
 		responses = append(responses, pid_responses...)
 
 		matched_pids = append(matched_pids, matched_pids_in_family...)
+
 	}
-	//fmt.Printf("Got matched pids: %s\n", strings.Join(matched_pids, ","))
+	//log.Printf("Got matched pids: %s\n", strings.Join(matched_pids, ","))
 
 	var filtered_responses []Query_response
-	for _, response := range responses {
+	for iter := range responses {
+
+		if len(responses[iter].Pid) > 0 {
+			pid_obj := (*db).Get_pid_from_pid_name(responses[iter].Pid)
+			nickname := pid_obj.Properties["Internal name"].(string)
+			nickname = strings.Replace(nickname, "|", "-", -1)
+			responses[iter].Nickname = nickname
+			log.Printf("Got Nickname:%s for PID:%s\n", responses[iter].Nickname,
+				responses[iter].Pid)
+		}
+
 		if len(matched_pids) > 0 {
 			// Some pid matched
 			for _, pid := range matched_pids {
-				if response.Pid == pid {
-					filtered_responses = append(filtered_responses, response)
+				if responses[iter].Pid == pid {
+					filtered_responses = append(filtered_responses, responses[iter])
 					break
 				}
 			}
 		} else if len(matched_families) > 0 {
 			for _, family := range matched_families {
-				if response.Family == family {
-					filtered_responses = append(filtered_responses, response)
+				if responses[iter].Family == family {
+					filtered_responses = append(filtered_responses, responses[iter])
 				}
 			}
 		} else {
 			// If no family or PID match, allow all matched keywords
-			filtered_responses = append(filtered_responses, response)
+			filtered_responses = append(filtered_responses, responses[iter])
 		}
 	}
 
@@ -800,6 +825,7 @@ func Query_database(query []string, db Schema_db) (responses []Query_response,
 	/*
 	 * If a query matched both property-name and one of its values, then
 	 * prefer only those both match responses
+	 * Looks like it anyways takes care of filter_unique_value_matches as well
 	 */
 	filtered_responses = prefer_both_prop_and_value_matches(filtered_responses)
 
@@ -890,12 +916,12 @@ func Dump_db(db Schema_db) {
 	families := db.Get_families()
 	for _, family := range families {
 		response = Dump_family(&family)
-		fmt.Print(response)
+		log.Print(response)
 	}
 }
 
-func Get_family_info(db Schema_db, family_name string) (response string) {
-	for _, family := range db.Get_families() {
+func Get_family_info(db *Schema_db, family_name string) (response string) {
+	for _, family := range (*db).Get_families() {
 		if strings.EqualFold(family.Properties["name"].(string), family_name) {
 			response = Dump_family(&family)
 		}
@@ -903,8 +929,22 @@ func Get_family_info(db Schema_db, family_name string) (response string) {
 	return response
 }
 
-func Get_pid_info(db Schema_db, pid_name string) (response string) {
-	for _, family := range db.Get_families() {
+func get_family_obj_from_pid(db *Schema_db, pid_name string) (family_obj *T_families) {
+	families := (*db).Get_families()
+	for iter, family := range families {
+		for _, pid := range family.Pids {
+			if strings.EqualFold(pid_name, pid.Properties["name"].(string)) ||
+				strings.EqualFold(pid_name, pid.Properties["Internal name"].(string)) {
+				return &families[iter]
+			}
+		}
+	}
+
+	panic(fmt.Sprintf("Could not find family for pid_name:%s", pid_name))
+}
+
+func Get_pid_info(db *Schema_db, pid_name string) (response string) {
+	for _, family := range (*db).Get_families() {
 		for _, pid := range family.Pids {
 			if strings.EqualFold(pid_name, pid.Properties["name"].(string)) ||
 				strings.EqualFold(pid_name, pid.Properties["Internal name"].(string)) {
@@ -912,5 +952,30 @@ func Get_pid_info(db Schema_db, pid_name string) (response string) {
 			}
 		}
 	}
+	return response
+}
+
+func Get_pid_summary(db *Schema_db, pid_name string) (response string) {
+
+	family_obj := get_family_obj_from_pid(db, pid_name)
+	family_name := family_obj.Properties["name"]
+	pid_obj := (*db).Get_pid_from_pid_name(pid_name)
+	pid_nickname := pid_obj.Properties["Internal name"].(string)
+	pid_nickname = strings.Replace(pid_nickname, "|", "-", -1)
+	response = fmt.Sprintf("The %s card (internal name: %s) belongs to %s family\n",
+		pid_name, pid_nickname, family_name)
+
+	for iter := range pid_obj.Port_ranges {
+		if pid_obj.Port_ranges[iter].Start == pid_obj.Port_ranges[iter].Stop {
+			response += fmt.Sprintf("The card has port %d of type %s\n",
+				pid_obj.Port_ranges[iter].Start, pid_obj.Port_ranges[iter].Properties["Port-type"])
+		} else {
+			response += fmt.Sprintf("The card has ports %d-%d of type %s\n",
+				pid_obj.Port_ranges[iter].Start, pid_obj.Port_ranges[iter].Stop, pid_obj.Port_ranges[iter].Properties["Port-type"])
+		}
+	}
+
+	response += fmt.Sprintf("Ask me *tell me everything about %s* for complete information\n",
+		pid_name)
 	return response
 }

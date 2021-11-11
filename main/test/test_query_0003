@@ -1,0 +1,5 @@
+Which all Felidae cards use MetaDX phy
+The Felidae family card N540-FH-CSR-SYS (Jaguar) has **PHY** = **MetaDX1** on ports 14-21
+The Felidae family card N540-FH-CSR-SYS (Jaguar) has **PHY** = **MetaDX1** on ports 22-25
+The Felidae family card N540-FH-CSR-SYS (Jaguar) has **PHY** = **MetaDX1** on ports 26-27
+The Felidae family card N540-FH-AGG-SYS (Lion) has **PHY** = **MetaDX1** on ports 24-27

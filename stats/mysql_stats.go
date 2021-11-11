@@ -3,6 +3,7 @@ package stats
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"strconv"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -23,7 +24,7 @@ func (handle *MySql_handle) Initialize(user string, password string,
 	handle.stat_table = "queries"
 
 	db_access := fmt.Sprintf("%s:%s@tcp(%s:%d)/", user, password, host, port)
-	fmt.Printf("Connecting to mysql database with access: %s\n", db_access)
+	log.Printf("Connecting to mysql database with access: %s\n", db_access)
 	db, err := sql.Open("mysql", db_access)
 	if err != nil {
 		panic(err)
@@ -51,7 +52,7 @@ func (handle *MySql_handle) Initialize(user string, password string,
 	table_str += " fullResponse VARCHAR(2048),"
 	table_str += " PRIMARY KEY (id)"
 	table_str += ")"
-	fmt.Printf("Creating table: %s\n", table_str)
+	log.Printf("Creating table: %s\n", table_str)
 	_, err = db.Exec(table_str)
 	if err != nil {
 		panic(err)
@@ -66,10 +67,10 @@ func (handle *MySql_handle) GetLastNstats(last_n int) ([]Stat_data, error) {
 	table_str := "SELECT timestamp,id,query,requestor,category,numResponses from " +
 		handle.db_name + "." + handle.stat_table + " order by timestamp DESC limit " +
 		strconv.Itoa(last_n)
-	fmt.Printf("Going to query: %s\n", table_str)
+	log.Printf("Going to query: %s\n", table_str)
 	result, err := handle.db.Query(table_str)
 	if err != nil {
-		fmt.Println("Failed to query database: " + err.Error())
+		log.Println("Failed to query database: " + err.Error())
 		return nil, err
 	}
 
@@ -78,24 +79,24 @@ func (handle *MySql_handle) GetLastNstats(last_n int) ([]Stat_data, error) {
 		err = result.Scan(&stat_entry.Timestamp, &stat_entry.Id, &stat_entry.Query,
 			&stat_entry.Requestor, &stat_entry.Category, &stat_entry.NumResponses)
 		if err != nil {
-			fmt.Printf("Error scanning response: %s\n", err.Error())
+			log.Printf("Error scanning response: %s\n", err.Error())
 			return nil, err
 		}
 
 		stat_data = append(stat_data, *stat_entry)
 	}
 
-	fmt.Printf("Got %d responses from query\n", len(stat_data))
+	log.Printf("Got %d responses from query\n", len(stat_data))
 	return stat_data, nil
 }
 
 func (handle *MySql_handle) GetResponseById(Id int) (string, error) {
 	table_str := "SELECT fullResponse from " + handle.stat_table +
 		" where id=" + strconv.Itoa(Id)
-	fmt.Printf("Going to query: %s\n", table_str)
+	log.Printf("Going to query: %s\n", table_str)
 	result, err := handle.db.Query(table_str)
 	if err != nil {
-		fmt.Println("Failed to query database: " + err.Error())
+		log.Println("Failed to query database: " + err.Error())
 		return "", err
 	}
 
@@ -104,11 +105,11 @@ func (handle *MySql_handle) GetResponseById(Id int) (string, error) {
 	result.Next()
 	err = result.Scan(&full_result)
 	if err != nil {
-		fmt.Println("Failed to scan result: " + err.Error())
+		log.Println("Failed to scan result: " + err.Error())
 		return "", err
 	}
 
-	fmt.Printf("Got response for id:%d - %s\n", Id, full_result)
+	log.Printf("Got response for id:%d - %s\n", Id, full_result)
 	return full_result, nil
 }
 
@@ -120,11 +121,11 @@ func (handle *MySql_handle) Updatestat(query string, requestor string, category 
 	table_str += "\"" + query + "\", \"" + requestor + "\", \"" + category + "\", \"" +
 		strconv.Itoa(num_responses) + "\", \"" + full_response +
 		"\")"
-	fmt.Printf("Executing query %s\n", table_str)
+	log.Printf("Executing query %s\n", table_str)
 
 	_, err := handle.db.Exec(table_str)
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println(err.Error())
 	}
 
 	return err

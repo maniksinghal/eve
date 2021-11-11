@@ -1,0 +1,9 @@
+Which PHY is used on Everglades
+The Bigbend family card N540X-16Z4G8Q2C-A (Everglades - AC) has **PHY** = **BCM54140** on ports 0-3
+The Bigbend family card N540X-16Z4G8Q2C-A (Everglades - AC) has **PHY** = **BCM82780** on ports 4-19
+The Bigbend family card N540X-16Z4G8Q2C-A (Everglades - AC) has **PHY** = **MV88EC808** (Marvell) on ports 20-27
+The Bigbend family card N540X-16Z4G8Q2C-A (Everglades - AC) has **PHY** = **MV88EC808** (Marvell) on ports 28-29
+The Bigbend family card N540X-16Z4G8Q2C-D (Everglades - DC) has **PHY** = **BCM54140** on ports 0-3
+The Bigbend family card N540X-16Z4G8Q2C-D (Everglades - DC) has **PHY** = **BCM82780** on ports 4-19
+The Bigbend family card N540X-16Z4G8Q2C-D (Everglades - DC) has **PHY** = **MV88EC808** (Marvell) on ports 20-27
+The Bigbend family card N540X-16Z4G8Q2C-D (Everglades - DC) has **PHY** = **MV88EC808** (Marvell) on ports 28-29

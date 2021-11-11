@@ -1,0 +1,17 @@
+Which all types of ports are there in eyrie
+The NCS-57C3-MOD-SYS card (internal name: Eyrie - Base) belongs to Fretta family
+The card has ports 0-7 of type SFP28
+The card has ports 8-23 of type SFP28
+The card has ports 24-31 of type QSFP28
+The card has ports 32-47 of type SFP28
+The card has ports 48-55 of type SFP28
+Ask me *tell me everything about NCS-57C3-MOD-SYS* for complete information
+
+The NCS-57C3-MODS-SYS card (internal name: Eyrie - Scale) belongs to Fretta family
+The card has ports 0-7 of type SFP28
+The card has ports 8-23 of type SFP28
+The card has ports 24-27 of type QSFP28
+The card has ports 28-43 of type SFP28
+The card has ports 44-51 of type SFP28
+Ask me *tell me everything about NCS-57C3-MODS-SYS* for complete information
+

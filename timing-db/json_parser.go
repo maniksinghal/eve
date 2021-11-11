@@ -2,7 +2,7 @@ package timing_db_schema
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -117,7 +117,7 @@ func (db *Json_db) Parse_db(filepath string) error {
 
 	next_family := 0
 	for family, family_data := range families {
-		fmt.Println("Family is: " + family)
+		log.Println("Family is: " + family)
 		db.fill_family(next_family, family, family_data)
 		next_family = next_family + 1
 	}

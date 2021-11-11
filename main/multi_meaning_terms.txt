@@ -1,35 +1,70 @@
-synce-clock-recovery : clock-recovery,recovery,recovered,clock-recovered,synce-clock,synce
-bits-framer : bits
-turin-cr : turincr
-turin-se : turinse, turin
-old-castle : oldcastle, oc, oldcastle-cr, old-castle-cr, oc-cr, oldcastlecr
-rp-e : rpe
-rp2-e : rp2e, rp2-e
-potenza-mod : potenzamod, mod-as
-vigor-base : vigor-100-base, vigor-100
-potenza-10c : potenza-+10c, pot-10c, pot-+10c, pot10c, potenza10c
-rainbow : rain-bow
-crowfoot : crow-foot
-bearfoot : bear-foot
-wingbow : wing-bow
-sanddunes : arches, sand-dunes
+4x25g : 4x25
+4x10g : 4x10
+bcm82780 : bcm-82780, bcm-phy, broadcom-phy, 82780, broadcom-phys, bcm-phys
+bcm82381 : bcm-82381, bcm-phy, broadcom-phy, 82381, broadcom-phys, bcm-phys 
+bcm54140 : bcm-phy, broadcom-phy, 54140, broadcom-phys, bcm-phys 
+cfp2-dco : cfp2, dco, cfp2dco
+cr55521 : credo, credo-phy, 55521, cr-55521
+cs4317 : inphi, 4317, inphi-phy
+es200: apm, macom, es-200
+eyrie : NC57-MOD-RP2-E
 MV88EC808 : marvell, marvel
-jericho+ : jericho, j+
-qumran-mx : qumran
-qumran-ax : qumran
-qumran-ux : qumran
-jericho2 : j2, jericho
-jericho2c : j2c, jericho
-class-c : class-b
-class-b : class-c
-timestamper : timestamping
-re-timer : retimer
-npu : np, asic
+mv98px1008 : marvell, marvel, pipe, marvell-pipe, marvel-pipe
 VSC8258 : vitesse, vts
 VSC8582 : vitesse, vts
+apts : virtual-port, vp, virtual-ptp-port
+bearfoot : bear-foot
+bits-framer : bits
+class-b : classb, classc, class-c
+class-c : classc, classb, class-b
+crowfoot : crow-foot
+delay-asymmetry: asymmetry, ptp-asymmetry
 es200 : apm, macom
-metadx1 : mdx, meta-dx, meta-dx1
-x120 : apm, macom
-apts : virtual-port, vp
-delay-asymmetry: asymmetry
+g.8262.1 : enhanced-esmc, enhanced-synce, esynce
+g.8275.1 : ptp-over-ethernet, ptpoeth
+g.8275.2 : ptpoip, ptp-over-ip, ptpoipv4
+gearbox : gear-box 
+jericho+ : jericho, j+
+jericho2 : j2, jericho
+jericho2c : j2c, jericho
+mediatek : media-tek, media-tech, mediatech, mtk
+metadx1 : mdx, meta-dx, meta-dx1, metadx
 multi-profile : multiprofile
+MV88EC808 : marvell, 88ec808
+npu : np, asic
+old-castle : oldcastle, oc, oldcastle-cr, old-castle-cr, oc-cr, oldcastlecr
+phy : phys
+potenza-10c : potenza-+10c, pot-10c, pot-+10c, pot10c, pot+10c, potenza+10c, potenza10c, potenza
+potenza-mod : potenzamod, mod-as, potenza+mpa, potenza+-mpa, potenza-modas, potenza
+potenza-100 : potenza100, potenza-36x100, potenza
+prtc-a : prtca
+prtc-b : prtcb
+PTP-over-BVI : PTPoBVI, BVI
+ptp-over-bundle : ptpobundle, bundle
+ptp-performance : timing-performance
+qsfp28 : qsfp-28
+qsfp-dd : qsfpdd
+qumran-ax : qumran
+qumran-mx : qumran
+qumran-ux : qumran
+rainbow : rain-bow
+re-timer : retimer
+rp-e : rpe
+rp2-e : rp2e, rp2-e
+sanddunes : arches, sand-dunes, ncs5700
+sfp28 : sfp-28
+sfp56 : sfp-56
+shadow-tower : shadowtower, ncs5700
+synce-clock-recovery : clock-recovery,recovery,recovered,clock-recovered,synce-clock,synce
+timestamper : timestamping
+transparent-clock : transparentclock
+turin-cr : turincr
+turin-se : turinse, turin
+vigor-100se : vigor100-se, vigor-100, vigor-100-se, vigor-100se, vigor100, vigor
+vigor-base : vigor-100-base, vigor
+vigor-400 : vigor
+vigor-ls : vigorls, vigor
+wingbow : wing-bow
+ublox : u-blox, m8t
+vsc8582 : vitesse, 8582
+x120 : apm, macom
