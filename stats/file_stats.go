@@ -18,12 +18,12 @@ func (handle *File_stats) Updatestat(query string, requestor string, category st
 
 func (handle *File_stats) Initialize(user string, password string, host string, port int) error {
 
-	f, err := os.OpenFile("eve.stats", os.O_WRONLY|os.O_CREATE, 0777)
+	f, err := os.OpenFile("eve.stats", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		panic(err)
 	}
 
-	f.Truncate(0)
+	//f.Truncate(0)
 	handle.stats_fd = log.New(f, "STAT: ", log.Ldate|log.Ltime)
 
 	Stats = handle

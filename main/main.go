@@ -1,5 +1,6 @@
 package main
 
+
 import (
 	"bufio"
 	"encoding/json"
@@ -26,18 +27,32 @@ func respond_to_query(message string, roomId string, sender string) {
 
 	var response string = query_parser.Parse_query(message, sender, &my_db)
 
-	markDownMessage := &webexteams.MessageCreateRequest{
-		Markdown: response,
-		RoomID:   roomId,
-		//ToPersonID: person_id,
-	}
+	for len(response) > 0 {
 
-	newMarkDownMessage, _, err := Client.Messages.CreateMessage(markDownMessage)
-	if err != nil {
-		log.Println("Error sending message " + err.Error())
+		var response_to_send string
+
+		if len(response) > 6000 {
+			response_to_send = response[0:5999]
+			response_to_send += "..."
+			response = response[6000:]
+		} else {
+			response_to_send = response
+			response = ""
+		}
+
+		markDownMessage := &webexteams.MessageCreateRequest{
+			Markdown: response_to_send,
+			RoomID:   roomId,
+			//ToPersonID: person_id,
+		}
+
+		newMarkDownMessage, _, err := Client.Messages.CreateMessage(markDownMessage)
+		if err != nil {
+			log.Println("Error sending message " + err.Error())
+		}
+		log.Println("POST:", newMarkDownMessage.ID, newMarkDownMessage.Markdown,
+			newMarkDownMessage.Created)
 	}
-	log.Println("POST:", newMarkDownMessage.ID, newMarkDownMessage.Markdown,
-		newMarkDownMessage.Created)
 }
 
 // create a handler struct

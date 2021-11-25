@@ -97,6 +97,13 @@ func pre_process_query(query string) (keywords []string) {
 	//Lowercase the query
 	query = strings.ToLower(query)
 
+	//Remove punctuations sticking to the words
+	var punctuation_list []string = []string{",", "?"}
+	for _, punc := range punctuation_list {
+		query = strings.Replace(query, punc, " ", -1)
+	}
+	log.Printf("Query after removing punctuations: %s\n", query)
+
 	// Remove accidental repeated whitespaces between words
 	space := regexp.MustCompile(`\s+`)
 	query = space.ReplaceAllString(query, " ")
