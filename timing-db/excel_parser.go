@@ -48,11 +48,7 @@ func (db *Excel_db) parse_sheet(sheet_name string, keys []string) (
 
 	log.Printf("Parsing sheet %s\n", sheet_name)
 
-	sheet_map, err := db.file_handle.GetRows(sheet_name)
-	if err != nil {
-		log.Println("Error opening sheet")
-		return nil, fmt.Errorf("could not parse sheet %s", sheet_name)
-	}
+	sheet_map := db.file_handle.GetRows(sheet_name)
 
 	num_rows = len(sheet_map)
 	num_cols = len(sheet_map[0])
@@ -176,15 +172,15 @@ func (db *Excel_db) Parse_db(filepath string) error {
 	db.file_handle = f
 	db.file_name = filepath
 
-	sheet_list := f.GetSheetList()
-	for _, sheet := range sheet_list {
-		log.Println("Got sheet " + sheet)
-	}
+	//sheet_list := f.GetSheetList()
+	//for _, sheet := range sheet_list {
+	//	log.Println("Got sheet " + sheet)
+	//}
 
 	keys := []string{"PID"}
 	sheet_entries, err := db.parse_sheet("General", keys)
 	if err != nil {
-		f.Close()
+		//f.Close()
 		return err
 	}
 
@@ -242,7 +238,7 @@ func (db *Excel_db) Parse_db(filepath string) error {
 	keys = []string{"PID", "Port range", "Port-type", "Speeds", "Internal name"}
 	sheet_entries, err = db.parse_sheet("Port information", keys)
 	if err != nil {
-		f.Close()
+		//f.Close()
 		return err
 	}
 
@@ -315,7 +311,7 @@ func (db *Excel_db) Parse_db(filepath string) error {
 	sheet_entries, err = db.parse_sheet("Features", keys)
 	if err != nil {
 		log.Println(err.Error())
-		f.Close()
+		//f.Close()
 		return err
 	}
 
@@ -361,6 +357,6 @@ func (db *Excel_db) Parse_db(filepath string) error {
 		}
 	}
 
-	f.Close()
+	//f.Close()
 	return nil
 }
